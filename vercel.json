@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm ci && chmod +x node_modules/.bin/* && npm run build",
+  "buildCommand": "npm ci && npm run build",
   "outputDirectory": "build",
   "installCommand": "npm ci",
   "framework": "vite",

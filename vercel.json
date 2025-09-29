@@ -10,6 +10,26 @@
   },
   "routes": [
     {
+      "src": "/assets/(.*\\.js)",
+      "headers": {
+        "cache-control": "s-maxage=31536000,immutable",
+        "content-type": "application/javascript"
+      }
+    },
+    {
+      "src": "/assets/(.*\\.css)",
+      "headers": {
+        "cache-control": "s-maxage=31536000,immutable",
+        "content-type": "text/css"
+      }
+    },
+    {
+      "src": "/assets/(.*)",
+      "headers": {
+        "cache-control": "s-maxage=31536000,immutable"
+      }
+    },
+    {
       "src": "/static/(.*)",
       "headers": {
         "cache-control": "s-maxage=31536000,immutable"

@@ -4,7 +4,7 @@
   "description": "AI-Powered Interview Assistant for Swipe Internship",
   "private": true,
   "engines": {
-    "node": ">=18.0.0"
+    "node": "18.x"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.0.1",

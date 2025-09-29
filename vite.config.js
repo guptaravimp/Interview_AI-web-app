@@ -6,12 +6,20 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    open: true
+    open: true,
+    host: true, // Allow external connections
+    cors: true, // Enable CORS
+    hmr: {
+      overlay: true // Show error overlay
+    }
   },
   build: {
     outDir: 'build',
     sourcemap: false,
     minify: 'esbuild'
   },
-  base: './'
+  base: './',
+  resolve: {
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.json']
+  }
 })

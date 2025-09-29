@@ -3,11 +3,6 @@
   "outputDirectory": "build",
   "installCommand": "npm ci",
   "framework": "vite",
-  "functions": {
-    "app/api/**/*.js": {
-      "runtime": "nodejs22.x"
-    }
-  },
   "routes": [
     {
       "src": "/assets/(.*\\.js)",

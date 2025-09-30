@@ -26,7 +26,7 @@ import {
   addMessage,
   setWaitingForField
 } from '../store/slices/chatSlice.js';
-import { generateQuestions, evaluateAnswer, generateInterviewSummary } from '../utils/aiService.js';
+import { generateQuestions, evaluateAnswer, generateInterviewSummary, calculateFinalScore } from '../utils/aiService.js';
 import ResumeUpload from './ResumeUpload.jsx';
 import ChatInterface from './ChatInterface.jsx';
 import InterviewFlow from './InterviewFlow.jsx';
@@ -284,11 +284,15 @@ const IntervieweeTab = () => {
         }));
       } else {
         // Complete interview
+        // Calculate final score from actual answer scores first
+        const allAnswers = [...currentInterview.answers, { ...answerObj, score: evaluation.score }];
+        const calculatedFinalScore = calculateFinalScore(allAnswers);
+
         try {
           const summaryPromise = generateInterviewSummary(
             { name: currentCandidate.name, email: currentCandidate.email, background: currentCandidate.resumeUrl },
             currentInterview.questions,
-            [...currentInterview.answers, { ...answerObj, score: evaluation.score }]
+            allAnswers
           );
           const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Summary generation timeout')), 20000)
@@ -300,20 +304,18 @@ const IntervieweeTab = () => {
           dispatch(updateCandidate({
             id: currentCandidate.id,
             interviewStatus: 'completed',
-            finalScore: summary.overallScore,
+            finalScore: calculatedFinalScore, // Use calculated score, not AI score
             summary: summary.summary
           }));
         } catch (summaryError) {
           console.error('Error generating summary:', summaryError);
-          // Complete interview even if summary fails
-          const averageScore = [...currentInterview.answers, { ...answerObj, score: evaluation.score }]
-            .reduce((sum, a) => sum + (a.score || 0), 0) / (currentInterview.answers.length + 1);
           
+          // Complete interview even if summary fails
           dispatch(completeInterview(currentCandidate.id));
           dispatch(updateCandidate({
             id: currentCandidate.id,
             interviewStatus: 'completed',
-            finalScore: Math.round(averageScore),
+            finalScore: calculatedFinalScore, // Use calculated score
             summary: 'Interview completed successfully. Summary generation failed due to timeout.'
           }));
         }
@@ -474,6 +476,7 @@ const IntervieweeTab = () => {
           onInterviewComplete={handleInterviewComplete}
           onPause={handlePause}
           onResume={handleResume}
+          finalScore={currentCandidate?.finalScore}
         />
       ) : (
         <Card>

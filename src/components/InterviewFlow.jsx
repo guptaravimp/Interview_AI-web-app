@@ -32,7 +32,8 @@ const InterviewFlow = ({
   onAnswerSubmit,
   onInterviewComplete,
   onPause,
-  onResume
+  onResume,
+  finalScore
 }) => {
   const [currentAnswer, setCurrentAnswer] = useState('');
   const [timeSpent, setTimeSpent] = useState(0);
@@ -141,7 +142,7 @@ const InterviewFlow = ({
             <Col span={8}>
               <Statistic 
                 title="Average Score" 
-                value={answers.length > 0 ? Math.round(answers.reduce((sum, a) => sum + (a.score || 0), 0) / answers.length) : 0} 
+                value={finalScore || 0} 
                 suffix="/ 100" 
               />
             </Col>

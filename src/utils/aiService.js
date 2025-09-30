@@ -200,13 +200,17 @@ export const evaluateAnswer = async (question, answer, candidateBackground) => {
 };
 
 
+// Utility function for consistent score calculation
+export const calculateFinalScore = (answers) => {
+  const scores = answers.map(a => a.score || 0).filter(s => s > 0);
+  return scores.length > 0 
+    ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+    : 0;
+};
+
 export const generateInterviewSummary = async (candidate, questions, answers) => {
   try {
-    const scores = answers.map((a) => a.score || 0).filter((s) => s > 0);
-    const overallScore =
-      scores.length > 0
-        ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-        : 0;
+    const overallScore = calculateFinalScore(answers);
 
     const questionsText = questions
       .map((q, i) => `${i + 1}. ${q.text} (${q.difficulty})`)
@@ -267,7 +271,7 @@ export const generateInterviewSummary = async (candidate, questions, answers) =>
 
     return {
       summary: summaryData.summary,
-      overallScore: Math.max(0, Math.min(100, summaryData.overallScore || overallScore))
+      overallScore: overallScore 
     };
   } catch (error) {
     console.error("Error generating summary:", error.response?.data || error);

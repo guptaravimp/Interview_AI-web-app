@@ -93,16 +93,79 @@ const IntervieweeTab = () => {
       // Simulate progress updates for question generation
       const progressInterval = setInterval(() => {
         setInterviewProgress(prev => {
-          if (prev >= 90) {
+          if (prev >= 85) {
             clearInterval(progressInterval);
-            return 90;
+            return 85;
           }
-          return prev + Math.random() * 15;
+          return prev + Math.random() * 10;
         });
-      }, 300);
+      }, 500);
 
-      // Generate questions
-      const questions = await generateInterviewQuestions(candidate);
+      // Generate questions with timeout and fallback
+      let questions;
+      try {
+        // Set a timeout for question generation
+        const questionPromise = generateInterviewQuestions(candidate);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Question generation timeout')), 30000)
+        );
+        
+        questions = await Promise.race([questionPromise, timeoutPromise]);
+      } catch (error) {
+        console.error('Error generating questions:', error);
+        
+        // Use fallback questions if AI generation fails
+        questions = [
+          {
+            id: 'q1',
+            text: 'Explain the difference between React functional components and class components.',
+            difficulty: 'easy',
+            timeLimit: 20,
+            category: 'React',
+            expectedTopics: ['React', 'Components', 'JavaScript']
+          },
+          {
+            id: 'q2',
+            text: 'How would you handle state management in a large React application?',
+            difficulty: 'medium',
+            timeLimit: 60,
+            category: 'React',
+            expectedTopics: ['State Management', 'Redux', 'Context API']
+          },
+          {
+            id: 'q3',
+            text: 'Describe the Node.js event loop and how it handles asynchronous operations.',
+            difficulty: 'medium',
+            timeLimit: 60,
+            category: 'Node.js',
+            expectedTopics: ['Event Loop', 'Asynchronous', 'JavaScript']
+          },
+          {
+            id: 'q4',
+            text: 'How would you optimize the performance of a React application?',
+            difficulty: 'hard',
+            timeLimit: 120,
+            category: 'React',
+            expectedTopics: ['Performance', 'Optimization', 'React']
+          },
+          {
+            id: 'q5',
+            text: 'Explain microservices architecture and its benefits in a Node.js application.',
+            difficulty: 'hard',
+            timeLimit: 120,
+            category: 'Architecture',
+            expectedTopics: ['Microservices', 'Architecture', 'Scalability']
+          },
+          {
+            id: 'q6',
+            text: 'How would you implement authentication and authorization in a full-stack application?',
+            difficulty: 'medium',
+            timeLimit: 60,
+            category: 'Security',
+            expectedTopics: ['Authentication', 'Authorization', 'Security']
+          }
+        ];
+      }
 
       // Complete progress
       setInterviewProgress(100);
@@ -141,6 +204,9 @@ const IntervieweeTab = () => {
       console.error('Error starting interview:', error);
       setShowInterviewModal(false);
       setInterviewProgress(0);
+      
+      // Show error message to user
+      alert(`Failed to generate interview questions: ${error.message}. Using fallback questions instead.`);
     } finally {
       setIsGeneratingQuestions(false);
     }

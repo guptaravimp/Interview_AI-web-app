@@ -67,8 +67,10 @@ const processNextRequest = () => {
 
 export const generateQuestions = async (category) => {
   try {
+    console.log('Starting question generation...');
+    
     // Add a small delay before making the request to avoid rapid successive calls
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     const response = await queueApiRequest({
       contents: [
@@ -88,7 +90,14 @@ export const generateQuestions = async (category) => {
       ]
     });
 
+    console.log('Received response from AI service');
+    
+    if (!response?.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      throw new Error('Invalid response format from AI service');
+    }
+
     const aiResponse = response.data.candidates[0].content.parts[0].text;
+    console.log('AI Response:', aiResponse);
     
     // Extract JSON from markdown code blocks if present
     let jsonText = aiResponse;
@@ -99,23 +108,40 @@ export const generateQuestions = async (category) => {
       }
     }
     
+    console.log('Extracted JSON:', jsonText);
+    
     const questionsData = JSON.parse(jsonText); // Array of 6 questions
+    
+    if (!Array.isArray(questionsData) || questionsData.length === 0) {
+      throw new Error('Invalid questions format received from AI');
+    }
 
-    return questionsData.map((q) => ({
+    const mappedQuestions = questionsData.map((q) => ({
       text: q.text,
       difficulty: q.difficulty,
       category: q.category,
       expectedTopics: q.expectedTopics || []
     }));
+    
+    console.log('Successfully generated questions:', mappedQuestions.length);
+    return mappedQuestions;
   } catch (error) {
-    console.error("Error generating questions:", error.response?.data || error);
+    console.error("Error generating questions:", error);
     
     // Provide more helpful error message for rate limits
     if (error.response?.status === 429) {
       throw new Error("API rate limit exceeded. Please wait a few minutes and try again.");
     }
     
-    throw new Error("Failed to generate questions with Gemini API.");
+    if (error.message.includes('timeout')) {
+      throw new Error("Request timed out. Please try again.");
+    }
+    
+    if (error.message.includes('Invalid')) {
+      throw new Error("Invalid response from AI service. Please try again.");
+    }
+    
+    throw new Error(`Failed to generate questions: ${error.message}`);
   }
 };
 

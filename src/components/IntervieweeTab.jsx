@@ -50,6 +50,23 @@ const IntervieweeTab = () => {
   const currentInterview = currentCandidate ? interviews[currentCandidate.id] : undefined;
   const currentChatSession = currentCandidate ? chatSessions[currentCandidate.id] : undefined;
 
+  // Handle progress updates for interview generation
+  useEffect(() => {
+    if (isGeneratingQuestions && showInterviewModal) {
+      const progressInterval = setInterval(() => {
+        setInterviewProgress(prev => {
+          if (prev >= 85) {
+            clearInterval(progressInterval);
+            return 85;
+          }
+          return prev + Math.random() * 10;
+        });
+      }, 500);
+
+      return () => clearInterval(progressInterval);
+    }
+  }, [isGeneratingQuestions, showInterviewModal]);
+
   const generateInterviewQuestions = async (candidate) => {
     // Generate 6 questions using Gemini API
     const aiQuestions = await generateQuestions('React/Node');
@@ -89,17 +106,6 @@ const IntervieweeTab = () => {
       dispatch(addCandidate(candidate));
       dispatch(setCurrentCandidate(candidate.id));
       dispatch(initializeChat(candidate.id));
-
-      // Simulate progress updates for question generation
-      const progressInterval = setInterval(() => {
-        setInterviewProgress(prev => {
-          if (prev >= 85) {
-            clearInterval(progressInterval);
-            return 85;
-          }
-          return prev + Math.random() * 10;
-        });
-      }, 500);
 
       // Generate questions with timeout and fallback
       let questions;
@@ -233,8 +239,34 @@ const IntervieweeTab = () => {
         answer: answerObj
       }));
 
-      // Evaluate answer
-      const evaluation = await evaluateAnswer(currentQuestion, answer, currentCandidate.resumeUrl);
+      // Evaluate answer with timeout and fallback
+      let evaluation;
+      try {
+        const evaluationPromise = evaluateAnswer(currentQuestion, answer, currentCandidate.resumeUrl);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Evaluation timeout')), 15000)
+        );
+        
+        evaluation = await Promise.race([evaluationPromise, timeoutPromise]);
+      } catch (error) {
+        console.error('Error evaluating answer:', error);
+        // Use fallback scoring based on answer length and content
+        const answerLength = answer.trim().length;
+        const hasTechnicalTerms = /react|node|javascript|api|database|frontend|backend|component|state|props|async|await|promise|callback|function|class|import|export|const|let|var/i.test(answer);
+        
+        let fallbackScore = 50; // Base score
+        if (answerLength > 100) fallbackScore += 20;
+        if (answerLength > 200) fallbackScore += 10;
+        if (hasTechnicalTerms) fallbackScore += 15;
+        if (answerLength < 20) fallbackScore = 30;
+        
+        evaluation = {
+          score: Math.min(100, Math.max(0, fallbackScore)),
+          feedback: 'Answer evaluated using fallback scoring due to AI evaluation timeout.',
+          strengths: ['Provided an answer'],
+          improvements: ['Consider providing more detailed responses']
+        };
+      }
       
       // Update answer with score
       dispatch(updateAnswer({
@@ -253,11 +285,16 @@ const IntervieweeTab = () => {
       } else {
         // Complete interview
         try {
-          const summary = await generateInterviewSummary(
+          const summaryPromise = generateInterviewSummary(
             { name: currentCandidate.name, email: currentCandidate.email, background: currentCandidate.resumeUrl },
             currentInterview.questions,
             [...currentInterview.answers, { ...answerObj, score: evaluation.score }]
           );
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Summary generation timeout')), 20000)
+          );
+          
+          const summary = await Promise.race([summaryPromise, timeoutPromise]);
 
           dispatch(completeInterview(currentCandidate.id));
           dispatch(updateCandidate({
@@ -269,12 +306,15 @@ const IntervieweeTab = () => {
         } catch (summaryError) {
           console.error('Error generating summary:', summaryError);
           // Complete interview even if summary fails
+          const averageScore = [...currentInterview.answers, { ...answerObj, score: evaluation.score }]
+            .reduce((sum, a) => sum + (a.score || 0), 0) / (currentInterview.answers.length + 1);
+          
           dispatch(completeInterview(currentCandidate.id));
           dispatch(updateCandidate({
             id: currentCandidate.id,
             interviewStatus: 'completed',
-            finalScore: evaluation.score,
-            summary: 'Summary generation failed, but interview completed successfully.'
+            finalScore: Math.round(averageScore),
+            summary: 'Interview completed successfully. Summary generation failed due to timeout.'
           }));
         }
       }
@@ -284,6 +324,24 @@ const IntervieweeTab = () => {
       if (error.message.includes('Duplicate request')) {
         console.log('Duplicate request detected, skipping evaluation...');
         return;
+      }
+      
+      // If there's a critical error, still try to move to next question
+      const nextIndex = currentInterview.currentQuestionIndex + 1;
+      if (nextIndex < currentInterview.questions.length) {
+        dispatch(updateInterview({
+          candidateId: currentCandidate.id,
+          currentQuestionIndex: nextIndex
+        }));
+      } else {
+        // Complete interview even if evaluation failed
+        dispatch(completeInterview(currentCandidate.id));
+        dispatch(updateCandidate({
+          id: currentCandidate.id,
+          interviewStatus: 'completed',
+          finalScore: 0,
+          summary: 'Interview completed with evaluation errors.'
+        }));
       }
     } finally {
       setIsEvaluating(false);
@@ -443,7 +501,7 @@ const IntervieweeTab = () => {
           message={
             <Space>
               <Spin size="small" />
-              {isGeneratingQuestions ? 'Generating interview questions...' : 'Evaluating your answer...'}
+              {isGeneratingQuestions ? 'Generating interview questions...' : 'Evaluating your answer... (This may take up to 15 seconds)'}
             </Space>
           }
           type="info"

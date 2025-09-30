@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { ConfigProvider, Layout, Tabs, Space, Spin } from 'antd';
+import { ConfigProvider, Layout, Tabs, Space, Spin, App as AntApp } from 'antd';
 import { UserOutlined, DashboardOutlined } from '@ant-design/icons';
 import { store, persistor } from './store/index.js';
 import { useAppDispatch, useAppSelector } from './hooks/redux.js';
@@ -139,7 +139,9 @@ const App = () => {
             },
           }}
         >
-          <AppContent />
+          <AntApp>
+            <AppContent />
+          </AntApp>
         </ConfigProvider>
       </PersistGate>
     </Provider>

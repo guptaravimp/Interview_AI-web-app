@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs, Card, Typography, Space, Alert, Spin } from 'antd';
 import { 
   FileTextOutlined, 
@@ -146,7 +146,7 @@ const IntervieweeTab = () => {
     }
   };
 
-  const handleAnswerSubmit = async (answer, timeSpent) => {
+  const handleAnswerSubmit = useCallback(async (answer, timeSpent) => {
     if (!currentCandidate || !currentInterview) return;
 
     setIsEvaluating(true);
@@ -186,26 +186,43 @@ const IntervieweeTab = () => {
         }));
       } else {
         // Complete interview
-        const summary = await generateInterviewSummary(
-          { name: currentCandidate.name, email: currentCandidate.email, background: currentCandidate.resumeUrl },
-          currentInterview.questions,
-          [...currentInterview.answers, { ...answerObj, score: evaluation.score }]
-        );
+        try {
+          const summary = await generateInterviewSummary(
+            { name: currentCandidate.name, email: currentCandidate.email, background: currentCandidate.resumeUrl },
+            currentInterview.questions,
+            [...currentInterview.answers, { ...answerObj, score: evaluation.score }]
+          );
 
-        dispatch(completeInterview(currentCandidate.id));
-        dispatch(updateCandidate({
-          id: currentCandidate.id,
-          interviewStatus: 'completed',
-          finalScore: summary.overallScore,
-          summary: summary.summary
-        }));
+          dispatch(completeInterview(currentCandidate.id));
+          dispatch(updateCandidate({
+            id: currentCandidate.id,
+            interviewStatus: 'completed',
+            finalScore: summary.overallScore,
+            summary: summary.summary
+          }));
+        } catch (summaryError) {
+          console.error('Error generating summary:', summaryError);
+          // Complete interview even if summary fails
+          dispatch(completeInterview(currentCandidate.id));
+          dispatch(updateCandidate({
+            id: currentCandidate.id,
+            interviewStatus: 'completed',
+            finalScore: evaluation.score,
+            summary: 'Summary generation failed, but interview completed successfully.'
+          }));
+        }
       }
     } catch (error) {
       console.error('Error evaluating answer:', error);
+      // Handle duplicate request error gracefully
+      if (error.message.includes('Duplicate request')) {
+        console.log('Duplicate request detected, skipping evaluation...');
+        return;
+      }
     } finally {
       setIsEvaluating(false);
     }
-  };
+  }, [currentCandidate, currentInterview, dispatch]);
 
   const handleInterviewComplete = () => {
     if (currentCandidate) {
@@ -246,7 +263,7 @@ const IntervieweeTab = () => {
   };
 
   // Auto-advance and auto-submit functionality
-  const handleTimerExpired = async () => {
+  const handleTimerExpired = useCallback(async () => {
     if (!currentInterview || !currentCandidate) return;
 
     const currentQuestion = getCurrentQuestion();
@@ -265,7 +282,7 @@ const IntervieweeTab = () => {
         currentQuestionIndex: nextIndex
       }));
     }
-  };
+  }, [currentInterview, currentCandidate, handleAnswerSubmit, dispatch]);
 
   // Get current question for timer
   const currentQuestion = getCurrentQuestion();
@@ -323,6 +340,7 @@ const IntervieweeTab = () => {
       ),
       children: currentInterview ? (
         <InterviewFlow
+          key={`interview-${currentInterview.currentQuestionIndex}`}
           candidateId={currentCandidate?.id || ''}
           questions={currentInterview.questions}
           currentQuestionIndex={currentInterview.currentQuestionIndex}

@@ -43,7 +43,7 @@ const InterviewFlow = ({
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!currentAnswer.trim()) return;
     
     setIsSubmitting(true);
@@ -60,7 +60,7 @@ const InterviewFlow = ({
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [currentAnswer, timeSpent, isLastQuestion, onAnswerSubmit, onInterviewComplete]);
 
   const handleAutoSubmit = useCallback(async () => {
     if (currentAnswer.trim()) {
@@ -74,7 +74,7 @@ const InterviewFlow = ({
         onInterviewComplete();
       }
     }
-  }, [currentAnswer, timeSpent, isLastQuestion, onAnswerSubmit, onInterviewComplete]);
+  }, [currentAnswer, timeSpent, isLastQuestion, onAnswerSubmit, onInterviewComplete, handleSubmit]);
 
   // Use timer hook with key to ensure proper reset
   const { timeRemaining, isRunning } = useTimer(
@@ -89,6 +89,12 @@ const InterviewFlow = ({
   useEffect(() => {
     console.log('InterviewFlow - timeRemaining updated:', timeRemaining);
   }, [timeRemaining]);
+
+  // Reset timeSpent and currentAnswer when question changes
+  useEffect(() => {
+    setTimeSpent(0);
+    setCurrentAnswer('');
+  }, [currentQuestionIndex]);
 
   // Track time spent
   useEffect(() => {

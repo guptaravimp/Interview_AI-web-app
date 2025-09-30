@@ -1,10 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export const useTimer = (initialTime, isActive = true, onExpire) => {
   const [timeRemaining, setTimeRemaining] = useState(initialTime);
   const [isRunning, setIsRunning] = useState(isActive);
   const intervalRef = useRef(null);
   const lastInitialTime = useRef(initialTime);
+  const onExpireRef = useRef(onExpire);
+
+  // Update the ref when onExpire changes
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
 
   // Reset timer when initialTime changes
   useEffect(() => {
@@ -42,8 +48,8 @@ export const useTimer = (initialTime, isActive = true, onExpire) => {
         
         if (newTime <= 0) {
           console.log('Timer expired!');
-          if (onExpire) {
-            onExpire();
+          if (onExpireRef.current) {
+            onExpireRef.current();
           }
           return 0;
         }
@@ -57,17 +63,7 @@ export const useTimer = (initialTime, isActive = true, onExpire) => {
         intervalRef.current = null;
       }
     };
-  }, [isActive, onExpire]);
-
-  // Handle timer expiration
-  useEffect(() => {
-    if (timeRemaining <= 0 && isActive) {
-      console.log('Timer expired! Triggering onExpire');
-      if (onExpire) {
-        onExpire();
-      }
-    }
-  }, [timeRemaining, isActive, onExpire]);
+  }, [isActive]);
 
   const reset = (newTime) => {
     setTimeRemaining(newTime);

@@ -104,7 +104,7 @@ const ProcessingModal = ({
               '100%': content.progressColor,
             }}
             trailColor="#e5e7eb"
-            strokeWidth={8}
+            size="default"
             showInfo={false}
             className="rounded-full"
           />
